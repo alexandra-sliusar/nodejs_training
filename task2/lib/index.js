@@ -2,6 +2,7 @@ const _ = require('underscore');
 const express = require('express');
 const app = express();
 const router = express.Router();
+const schema = require('./users.post.schema');
 const data = [];
 
 app.listen(3000);
@@ -36,7 +37,7 @@ router.route('/')
         } else {
             res.status(400).json(errors);
         }
-    }).post((req, res) => {
+    }).post(validateSchema(), (req, res) => {
         const user  = req.body;
         const index = _.findIndex(data, { id: user.id });
         if (index === -1) {
@@ -66,4 +67,28 @@ function getAutoSuggestUsers(limit, loginSubstring) {
         .sortBy('login')
         .first(limit)
         .value();
+}
+
+function validateSchema() {
+    return (req, res, next) => {
+        const { error } = schema.validate(req.body, {
+            abortEarly: false,
+            allowUnknown: false
+        });
+
+        if (error === undefined) {
+            return next();
+        }
+        res.status(400).json(errorResponse(error.details));
+    };
+}
+
+function errorResponse(schemaErrors) {
+    const errors = schemaErrors.map(error => {
+        const { path, message } = error;
+        return { path, message };
+    });
+    return {
+        status: 'failed',
+        errors };
 }

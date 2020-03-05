@@ -1,54 +1,33 @@
-const _ = require('underscore');
 const express = require('express');
 const app = express();
 const router = express.Router();
 const schema = require('./users.post.schema');
-const data = [];
+const usercontroller = require('./usercontroller');
 
 app.listen(3000);
 app.use(express.json());
-
-router.param('id', (req, res, next, id) => {
-    const user = _.findWhere(data, { id });
-    if (user === undefined) {
-        res.status(404).json(`User with id ${req.params.id} not found`);
-    } else {
-        req.user = user;
-        return next();
-    }
-});
+app.use('/users', router);
 
 router.route('/:id')
     .get((req, res) => {
-        res.json(req.user);
+        usercontroller.getById(req, res);
     }).delete((req, res) => {
-        req.user.isDeleted = true;
-        res.sendStatus(204);
+        usercontroller.delete(req, res);
     });
 
 router.route('/')
     .get((req, res) => {
-        const limit = Number(req.query.limit);
-        const loginSubstring = req.query.loginSubstring;
-
-        const errors = validateParams(limit, loginSubstring);
-        if (_.isEmpty(errors)) {
-            res.json(getAutoSuggestUsers(limit, loginSubstring));
+        if (!req.query.limit && !req.query.loginSubstring) {
+            usercontroller.getAll(req, res);
         } else {
-            res.status(400).json(errors);
+            const errors = validateParams(Number(req.query.limit), req.query.loginSubstring);
+            usercontroller.getFilteredUsers(req, res, errors);
         }
     }).post(validateSchema(), (req, res) => {
-        const user  = req.body;
-        const index = _.findIndex(data, { id: user.id });
-        if (index === -1) {
-            data.push(user);
-        } else {
-            data[index] = user;
-        }
-        res.sendStatus(204);
+        usercontroller.create(req, res);
+    }).put(validateSchema(), (req, res) => {
+        usercontroller.update(req, res);
     });
-
-app.use('/users', router);
 
 function validateParams(limit, loginSubstring) {
     const errors = [];
@@ -61,14 +40,6 @@ function validateParams(limit, loginSubstring) {
     return errors;
 }
 
-function getAutoSuggestUsers(limit, loginSubstring) {
-    return _.chain(data)
-        .filter(user => user.login.includes(loginSubstring))
-        .sortBy('login')
-        .first(limit)
-        .value();
-}
-
 function validateSchema() {
     return (req, res, next) => {
         const { error } = schema.validate(req.body, {
@@ -76,10 +47,10 @@ function validateSchema() {
             allowUnknown: false
         });
 
-        if (error === undefined) {
+        if (!error) {
             return next();
         }
-        res.status(400).json(errorResponse(error.details));
+        res.status(422).json(errorResponse(error.details));
     };
 }
 
@@ -89,6 +60,7 @@ function errorResponse(schemaErrors) {
         return { path, message };
     });
     return {
-        status: 'failed',
-        errors };
+        data: null,
+        errors
+    };
 }

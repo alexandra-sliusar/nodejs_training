@@ -3,29 +3,30 @@ const app = express();
 const router = express.Router();
 const schema = require('./users.post.schema');
 const usercontroller = require('./usercontroller');
+const logger = require('./logger');
 
 app.listen(3000);
 app.use(express.json());
 app.use('/users', router);
 
 router.route('/:id')
-    .get((req, res) => {
+    .get(logService('getUserById'), (req, res) => {
         usercontroller.getById(req, res);
-    }).delete((req, res) => {
+    }).delete(logService('deleteUser'), (req, res) => {
         usercontroller.delete(req, res);
     });
 
 router.route('/')
-    .get((req, res) => {
+    .get(logService('getUsers'), (req, res) => {
         if (!req.query.limit && !req.query.loginSubstring) {
             usercontroller.getAll(req, res);
         } else {
             const errors = validateParams(Number(req.query.limit), req.query.loginSubstring);
             usercontroller.getFilteredUsers(req, res, errors);
         }
-    }).post(validateSchema(), (req, res) => {
+    }).post(logService('createUser'), validateSchema(), (req, res) => {
         usercontroller.create(req, res);
-    }).put(validateSchema(), (req, res) => {
+    }).put(logService('updateUser'), validateSchema(), (req, res) => {
         usercontroller.update(req, res);
     });
 
@@ -38,6 +39,13 @@ function validateParams(limit, loginSubstring) {
         errors.push('Parameter loginSubstring should not me empty');
     }
     return errors;
+}
+
+function logService(methodname) {
+    return (req, res, next) => {
+        logger.info(`Request: ${req.method} ${req.originalUrl}, ${methodname}`);
+        next();
+    };
 }
 
 function validateSchema() {

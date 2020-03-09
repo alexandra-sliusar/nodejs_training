@@ -1,4 +1,5 @@
 const _ = require('underscore');
+const { logFullError } = require('./logging');
 const users = [];
 
 module.exports = {
@@ -10,6 +11,7 @@ module.exports = {
         }, (user) => {
             const errors = [];
             errors.push(`User with id ${user.id} already exists`);
+            logFullError(req, errors, 'createUser');
             res.status(400).json(getResponse(errors, null));
         });
     },
@@ -18,6 +20,7 @@ module.exports = {
         pushUser(req, res, (user) => {
             const errors = [];
             errors.push(`User with id ${user.id} not found`);
+            logFullError(req, errors, 'updateUser');
             res.status(404).json(getResponse(errors, null));
         }, (user) => {
             const errors = [];
@@ -30,7 +33,7 @@ module.exports = {
     },
 
     delete: (req, res) => {
-        getUser(req, res, (user, data, errors) => {
+        getUser(req, res, 'deleteUser', (user, data, errors) => {
             user.isDeleted = true;
             data = user;
             res.status(200).json(getResponse(errors, data));
@@ -47,12 +50,13 @@ module.exports = {
         if (_.isEmpty(errors)) {
             res.status(200).json(getResponse(errors, getAutoSuggestUsers(limit, loginSubstring)));
         } else {
+            logFullError(req, errors, 'getUsers');
             res.status(400).json(getResponse(errors, null));
         }
     },
 
     getById: (req, res) => {
-        getUser(req, res, (user, data, errors) => {
+        getUser(req, res, 'getUserById', (user, data, errors) => {
             data = user;
             res.status(200).json(getResponse(errors, data));
         });
@@ -66,13 +70,14 @@ function getResponse(errors, data) {
     };
 }
 
-function getUser(req, res, onSuccess) {
+function getUser(req, res, methodname, onSuccess) {
     const user = _.findWhere(users, { id: req.params.id });
     const errors = [];
     const data = null;
 
     if (!user) {
         errors.push(`User with id ${req.params.id} not found`);
+        logFullError(req, errors, methodname);
         res.status(404).json(getResponse(errors, data));
     } else {
         onSuccess(user, data, errors);

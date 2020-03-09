@@ -3,7 +3,7 @@ const app = express();
 const router = express.Router();
 const schema = require('./users.post.schema');
 const usercontroller = require('./usercontroller');
-const logger = require('./logger');
+const { logService, logError } = require('./logging');
 
 app.listen(3000);
 app.use(express.json());
@@ -32,16 +32,16 @@ router.route('/')
 
 router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     const errorMessage = `${err} has occured.`;
-    logger.error(errorMessage);
+    logError(errorMessage);
     res.status(500).json({ error: errorMessage });
 });
 
 process.on('uncaughtException', (err) => {
-    logger.error(`Uncaught exception: ${err.message}
+    logError(`Uncaught exception: ${err.message}
     ${err.stack}`);
     process.exit(1);
 }).on('unhandledRejection', (err) => {
-    logger.error(`Unhandled rejection : ${err.message}
+    logError(`Unhandled rejection : ${err.message}
     ${err.stack}`);
 });
 
@@ -54,13 +54,6 @@ function validateParams(limit, loginSubstring) {
         errors.push('Parameter loginSubstring should not me empty');
     }
     return errors;
-}
-
-function logService(methodname) {
-    return (req, res, next) => {
-        logger.info(`Request: ${req.method} ${req.originalUrl}, ${methodname}`);
-        next();
-    };
 }
 
 function validateSchema() {

@@ -30,6 +30,21 @@ router.route('/')
         usercontroller.update(req, res);
     });
 
+router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
+    const errorMessage = `${err} has occured.`;
+    logger.error(errorMessage);
+    res.status(500).json({ error: errorMessage });
+});
+
+process.on('uncaughtException', (err) => {
+    logger.error(`Uncaught exception: ${err.message}
+    ${err.stack}`);
+    process.exit(1);
+}).on('unhandledRejection', (err) => {
+    logger.error(`Unhandled rejection : ${err.message}
+    ${err.stack}`);
+});
+
 function validateParams(limit, loginSubstring) {
     const errors = [];
     if (!Number.isInteger(limit) || limit <= 0) {

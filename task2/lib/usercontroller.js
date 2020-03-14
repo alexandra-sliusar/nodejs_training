@@ -1,6 +1,8 @@
 const _ = require('underscore');
 const { logFullError } = require('./logging');
-const users = [];
+const jwt = require('jsonwebtoken');
+const secret = '2Strong4H@cker';
+const users = [{ id: '0', login: 'admin', password: 'password', age: 99, isDeleted: false }];
 
 module.exports = {
     create: (req, res) => {
@@ -60,6 +62,38 @@ module.exports = {
             data = user;
             res.status(200).json(getResponse(errors, data));
         });
+    },
+
+    login: (req, res) => {
+        const errors = [];
+        const user = _.findWhere(users, { login: req.body.login });
+
+        if (!user || user.password !== req.body.password) {
+            errors.push('Incorrect login and password combination');
+            res.status(403).send(getResponse(errors, null));
+        } else {
+            const payload = { 'sub': user.id, 'isActive': user.isActive };
+            const token = jwt.sign(payload, secret, { expiresIn: 20 });
+            res.status(200).send(token);
+        }
+    },
+
+    checkToken: (req, res, next) => {
+        const errors = [];
+        const token = req.headers['x-access-token'];
+        if (token) {
+            jwt.verify(token, secret, (err) => {
+                if (err) {
+                    errors.push('Failed to authenticate token');
+                    res.status(403).send(getResponse(errors, null));
+                } else {
+                    return next();
+                }
+            });
+        } else {
+            errors.push('No token provided');
+            res.status(401).send(getResponse(errors, null));
+        }
     }
 };
 

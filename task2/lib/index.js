@@ -7,28 +7,36 @@ const { logService, logError } = require('./logging');
 
 app.listen(3000);
 app.use(express.json());
-app.use('/users', router);
+app.use(router);
 
-router.route('/:id')
-    .get(logService('getUserById'), (req, res) => {
-        usercontroller.getById(req, res);
-    }).delete(logService('deleteUser'), (req, res) => {
-        usercontroller.delete(req, res);
-    });
+router.post('/authenticate', usercontroller.login);
 
-router.route('/')
-    .get(logService('getUsers'), (req, res) => {
-        if (!req.query.limit && !req.query.loginSubstring) {
-            usercontroller.getAll(req, res);
-        } else {
-            const errors = validateParams(Number(req.query.limit), req.query.loginSubstring);
-            usercontroller.getFilteredUsers(req, res, errors);
-        }
-    }).post(logService('createUser'), validateSchema(), (req, res) => {
-        usercontroller.create(req, res);
-    }).put(logService('updateUser'), validateSchema(), (req, res) => {
-        usercontroller.update(req, res);
-    });
+router.route('/users/:id')
+    .get(logService('getUserById'),
+        usercontroller.checkToken,
+        usercontroller.getById)
+    .delete(logService('deleteUser'),
+        usercontroller.checkToken, usercontroller.delete);
+
+router.route('/users/')
+    .get(logService('getUsers'),
+        usercontroller.checkToken,
+        (req, res) => {
+            if (!req.query.limit && !req.query.loginSubstring) {
+                usercontroller.getAll(req, res);
+            } else {
+                const errors = validateParams(Number(req.query.limit), req.query.loginSubstring);
+                usercontroller.getFilteredUsers(req, res, errors);
+            }
+        })
+    .post(logService('createUser'),
+        usercontroller.checkToken,
+        validateSchema(),
+        usercontroller.create)
+    .put(logService('updateUser'),
+        usercontroller.checkToken,
+        validateSchema(),
+        usercontroller.update);
 
 router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     const errorMessage = `${err} has occured.`;
